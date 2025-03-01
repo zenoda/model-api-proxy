@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 var db *sql.DB
@@ -72,6 +73,33 @@ func main() {
 					&cli.StringFlag{Name: "provider-name", Required: true, Usage: "Provider Name"},
 				},
 				Action: deleteProvider,
+			}, {
+				Name:  "list-logs",
+				Usage: "View recent logs",
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:  "lines",
+						Value: 100,
+						Usage: "Number of lines to view",
+					},
+					&cli.StringFlag{
+						Name:  "user-id",
+						Usage: "Filter logs by user ID",
+					},
+				},
+				Action: viewLogs,
+			},
+			{
+				Name:  "del-logs",
+				Usage: "Delete old logs",
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:  "days",
+						Value: 30,
+						Usage: "Number of days to retain logs",
+					},
+				},
+				Action: deleteLogs,
 			},
 		},
 	}
@@ -196,5 +224,56 @@ func deleteProvider(c *cli.Context) error {
 	}
 
 	fmt.Println("Provider deleted successfully!")
+	return nil
+}
+
+// 查看日志
+func viewLogs(c *cli.Context) error {
+	lines := c.Int("lines")
+	user := c.String("user-id")
+
+	query := "SELECT user_id, timestamp, endpoint FROM proxy_access_log ORDER BY timestamp DESC LIMIT ?"
+	args := []interface{}{lines}
+
+	if user != "" {
+		query = "SELECT user_id, timestamp, endpoint FROM proxy_access_log WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?"
+		args = []interface{}{user, lines}
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		log.Println("Error querying logs:", err)
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID string
+		var timestamp time.Time
+		var endpoint string
+		if err := rows.Scan(&userID, &timestamp, &endpoint); err != nil {
+			log.Println("Error scanning log:", err)
+			return err
+		}
+		fmt.Printf("%s\t%s\t%s\n", userID, timestamp.In(time.Local).Format("2006-01-02 15:04:05"), endpoint)
+	}
+
+	return nil
+}
+
+// 删除日志
+func deleteLogs(c *cli.Context) error {
+	days := c.Int("days")
+
+	// 计算保留日志的截止时间
+	retainUntil := time.Now().AddDate(0, 0, -days)
+
+	_, err := db.Exec("DELETE FROM proxy_access_log WHERE timestamp < ?", retainUntil)
+	if err != nil {
+		log.Println("Error deleting logs:", err)
+		return err
+	}
+
+	fmt.Printf("Deleted logs older than %d days\n", days)
 	return nil
 }
