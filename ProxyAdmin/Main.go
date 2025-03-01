@@ -126,7 +126,7 @@ func addUser(c *cli.Context) error {
 	userID := c.String("user-id")
 	userName := c.String("user-name")
 	index := strings.Index(userID, "@")
-	if index < 0 {
+	if index < 1 {
 		return errors.New("please use user's email as user-id")
 	}
 	userNameEn := userID[0:index]
