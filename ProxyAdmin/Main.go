@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
@@ -124,7 +125,13 @@ func initDB() {
 func addUser(c *cli.Context) error {
 	userID := c.String("user-id")
 	userName := c.String("user-name")
-	apiKey := userID[0:strings.Index(userID, "@")] + "-" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	index := strings.Index(userID, "@")
+	if index < 0 {
+		return errors.New("please use user's email as user-id")
+	}
+	userNameEn := userID[0:index]
+
+	apiKey := userNameEn + "-" + strings.ReplaceAll(uuid.New().String(), "-", "")
 
 	_, err := db.Exec("INSERT INTO proxy_user (user_id, user_name, api_key) VALUES (?, ?, ?)", userID, userName, apiKey)
 	if err != nil {
@@ -264,6 +271,11 @@ func viewLogs(c *cli.Context) error {
 // 删除日志
 func deleteLogs(c *cli.Context) error {
 	days := c.Int("days")
+
+	if days <= 0 {
+		log.Println("Error: days must be a positive integer")
+		return fmt.Errorf("days must be a positive integer")
+	}
 
 	// 计算保留日志的截止时间
 	retainUntil := time.Now().AddDate(0, 0, -days)
