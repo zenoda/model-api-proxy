@@ -1,0 +1,14 @@
+[Unit]
+Description=A reverse proxy for LLM APIs.
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/var/local/lib/model-api-proxy/proxy-server -p 8080
+Restart=on-failure
+RestartSec=5s
+WorkingDirectory=/var/local/lib/model-api-proxy
+
+[Install]
+WantedBy=multi-user.target

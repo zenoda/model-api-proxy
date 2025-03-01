@@ -29,18 +29,12 @@ type AccessLog struct {
 	Endpoint  string
 }
 
-var dir string
-
 // 数据库连接
 var db *sql.DB
 
-func initDB(dir string) error {
+func initDB() error {
 	var err error
-	err = os.MkdirAll(dir, os.ModeDir|0o755)
-	if err != nil {
-		return err
-	}
-	db, err = sql.Open("sqlite3", dir+"/data.db")
+	db, err = sql.Open("sqlite3", "./data.db")
 	if err != nil {
 		return err
 	}
@@ -209,16 +203,9 @@ func main() {
 				Value:   8080,
 				Usage:   "The port that the proxy listened on.",
 			},
-			&cli.StringFlag{
-				Name:    "dir",
-				Aliases: []string{"d"},
-				Value:   "/var/lib/model-api-proxy",
-				Usage:   "The directory for storing data.",
-			},
 		},
 		Action: func(context *cli.Context) error {
-			dir := context.String("dir")
-			err := initDB(dir)
+			err := initDB()
 			if err != nil {
 				log.Fatalf("Failed to initialize database: %v", err)
 			}
