@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/urfave/cli/v2"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,12 +29,18 @@ type AccessLog struct {
 	Endpoint  string
 }
 
+var dir string
+
 // 数据库连接
 var db *sql.DB
 
-func initDB() error {
+func initDB(dir string) error {
 	var err error
-	db, err = sql.Open("sqlite3", "./data.db")
+	err = os.MkdirAll(dir, os.ModeDir|0o755)
+	if err != nil {
+		return err
+	}
+	db, err = sql.Open("sqlite3", dir+"/data.db")
 	if err != nil {
 		return err
 	}
@@ -189,11 +198,41 @@ func copyResponse(w http.ResponseWriter, resp *http.Response) {
 }
 
 func main() {
-	err := initDB()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	// 定义命令行应用
+	app := &cli.App{
+		Name:  "proxy-server",
+		Usage: "Model api reverse proxy server.",
+		Flags: []cli.Flag{
+			&cli.Int64Flag{
+				Name:    "port",
+				Aliases: []string{"p"},
+				Value:   8080,
+				Usage:   "The port that the proxy listened on.",
+			},
+			&cli.StringFlag{
+				Name:    "dir",
+				Aliases: []string{"d"},
+				Value:   "/var/lib/model-api-proxy",
+				Usage:   "The directory for storing data.",
+			},
+		},
+		Action: func(context *cli.Context) error {
+			dir := context.String("dir")
+			err := initDB(dir)
+			if err != nil {
+				log.Fatalf("Failed to initialize database: %v", err)
+			}
+			port := context.Int64("port")
+			http.HandleFunc("/", proxyHandler)
+			fmt.Println("Starting proxy server on :", port)
+			log.Fatal(http.ListenAndServe("0.0.0.0:"+strconv.FormatInt(port, 10), nil))
+			return nil
+		},
 	}
-	http.HandleFunc("/", proxyHandler)
-	fmt.Println("Starting proxy server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	// 运行应用
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
