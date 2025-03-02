@@ -7,10 +7,10 @@ OUTPUT_DIR="output"
 
 # 创建输出目录（如果不存在）
 mkdir -p "${OUTPUT_DIR}"
-
+export CGO_ENABLED=1
 # 编译项目
 echo "Building ProxyServer..."
-go build -C ./ProxyServer -o "../${OUTPUT_DIR}" ./...
+go build -C ./ProxyServer -ldflags "-linkmode external -extldflags '-static'" -o "../${OUTPUT_DIR}" ./...
 
 # 检查编译是否成功
 if [ -f "output/proxy-server" ]; then
@@ -22,7 +22,7 @@ fi
 
 # 编译项目
 echo "Building ProxyAdmin..."
-go build -C ./ProxyAdmin -o "../${OUTPUT_DIR}" ./...
+go build -C ./ProxyAdmin -ldflags "-linkmode external -extldflags '-static'" -o "../${OUTPUT_DIR}" ./...
 
 # 检查编译是否成功
 if [ -f "output/proxy-admin" ]; then
